@@ -1,0 +1,120 @@
+import time
+import psycopg2
+
+from twitteruser import TwitterUser
+
+
+class DBHandler():
+    def __init__(self, config):
+        self.config = config
+        self.host = self.config['dbhost']
+        self.port = self.config['dbport']
+        self.user = self.config['dbuser']
+        self.password = self.config['dbpass']
+        self.db = self.config['db']
+        self.tables = [self.config['dbtable']]
+        self.conn = None
+        self.cur = None
+
+    def __enter__(self):
+        self.conn = psycopg2.connect(database=self.db,
+                                     user=self.user,
+                                     password=self.password,
+                                     host=self.host,
+                                     port=self.port)
+        self.cur = self.conn.cursor()
+        try:
+            for table in self.tables:
+                self.cur.execute(
+                    'SELECT * FROM pg_rules '
+                    'WHERE rulename = \'on_duplicate_ignore\'')
+                if not self.cur.fetchone():
+                    self.cur.execute(
+                        'CREATE RULE "on_duplicate_ignore" AS ON INSERT TO "{'
+                        'table}" '
+                        'WHERE EXISTS(SELECT 1 FROM {table} WHERE id=NEW.id) '
+                        'DO INSTEAD NOTHING;'.format(table=table))
+        except Exception as e:
+            print 'Exception in {}: {}'.format(self.__module__, e)
+            self.conn.rollback()
+        return self.cur
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.commit()
+        self.cur.close()
+        self.conn.close()
+
+    def add_users_to_table_users(self, user_list):
+        with DBHandler(self.config) as db:
+            for user in user_list:
+                query = 'INSERT INTO {table} (id, screen_name, ' \
+                        'description, followers_count, friend, lang, ' \
+                        'location, name, proc_status, been_followed, ' \
+                        'deep_checked) \
+                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)' \
+                    .format(table=self.config['dbtable'])
+                data = (user.id, user.screen_name, user.description,
+                        user.followers_count, user.friends_count, user.lang,
+                        user.location, user.name, 'raw', 'not_followed', False)
+                db.execute(query, data)
+
+    def update_user_status(self, user_id, new_status):
+        time.sleep(0.1)
+        # print 'in dbhandler.update_user_status'
+        with DBHandler(self.config) as db:
+            # print 'DBHandler prepared in dbhandler.update_user_status'
+            query = 'UPDATE {table} SET proc_status = %s WHERE id = %s' \
+                .format(table=self.config['dbtable'])
+            # print 'query prepared in dbhandler.update_user_status'
+            data = (new_status, user_id)
+            # print 'Updating user\'s DB record...'
+            db.execute(query, data)
+            # print 'User\'s DB record updated...'
+
+    def accept_user(self, user_id):
+        return self.update_user_status(user_id, 'accepted')
+
+    def reject_user(self, user_id):
+        return self.update_user_status(user_id, 'rejected')
+
+    def user_followed(self, screen_name, been_followed):
+        with DBHandler(self.config) as db:
+            query = 'UPDATE {table} SET been_followed = %s ' \
+                    'WHERE screen_name = %s' \
+                .format(table=self.config['dbtable'])
+            data = (been_followed, screen_name)
+            db.execute(query, data)
+
+    def get_user_from_db_row(self, user_id):
+        with DBHandler(self.config) as db:
+            query = 'SELECT * FROM {table} WHERE id = {id} ' \
+                .format(table=self.config['dbtable'], id=user_id)
+            db.execute(query)
+            user = TwitterUser()
+            user.id, user.screen_name, user.description, \
+            user.followers_count, \
+            user.friends_count, user.lang, user.location, user.name, \
+            user.proc_status, user.been_followed, \
+            user.deep_checked = db.fetchone()
+        return user
+
+    def get_next_unfollowed_user_from_db(self):
+        with DBHandler(self.config) as db:
+            query = 'SELECT id FROM {table} ' \
+                    'WHERE been_followed = \'not_followed\' ' \
+                    'AND proc_status = \'accepted\' ' \
+                    'ORDER BY followers_count DESC' \
+                .format(table=self.config['dbtable'])
+            db.execute(query)
+            user = db.fetchone()
+            if user:
+                next_to_crawl = \
+                    [self.get_user_from_db_row(user[0]).screen_name]
+                query = 'UPDATE {table} SET been_followed = \'followed\' ' \
+                        'WHERE id = {id}' \
+                    .format(table=self.config['dbtable'], id=user[0])
+                db.execute(query)
+            else:
+                next_to_crawl = []
+            return next_to_crawl
+
