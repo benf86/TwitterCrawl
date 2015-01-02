@@ -60,9 +60,9 @@ class InfoProcessor():
             self.reject_user()
 
     def accept_user(self):
-        print u'\t\t\t\t\tAccepted: {}'.format(self.user.screen_name)
+        print u'Accepted: @{}'.format(self.user.screen_name)
         self.db_handler.accept_user(self.user.id)
 
     def reject_user(self):
-        print u'\t\t\t\t\tRejected: {}'.format(self.user.screen_name)
+        print u'Rejected: @{}'.format(self.user.screen_name)
         self.db_handler.reject_user(self.user.id)

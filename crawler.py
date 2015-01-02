@@ -1,38 +1,49 @@
-import twitterhandler
+import time
+import traceback
+import sys
+
+import dbhandler
+import crawlinghandler
+import confighandler
+import rabbitmqhandler
 
 
 class Crawler():
-    def __init__(self, config, dbhandler):
-        self.tw_handler = twitterhandler.TwitterHandler(config)
-        self.db_handler = dbhandler
-        self.config = config
+    def __init__(self):
+        self.config = confighandler.config
+        self.dbh = dbhandler.DBHandler(self.config)
+        self.rmq = rabbitmqhandler.RabbitMQHandler(self.config, self.dbh)
+        self.ch = crawlinghandler.CrawlingHandler(self.config, self.dbh)
 
-    def get_crawling_seed(self):
-        with open('seed.txt', 'r+') as seed:
-            seeders = [screen_name.strip() for screen_name in seed.readlines()
-                       if screen_name.strip()]
-            return seeders
+    def start_crawling(self):
+        my_crawler = crawlinghandler.CrawlingHandler(self.config, self.dbh)
+        print 'Crawling is starting. Grab a hot beverage and enjoy!'
+        while True:
+            self.rmq.pull_users_to_mq()
+            db_seed_user = crawlinghandler.CrawlingHandler \
+                .get_next_unfollowed_user_from_db(self.ch)
+            next_to_crawl_list = \
+                {'users': db_seed_user,
+                 'db_seed': True} if db_seed_user else \
+                {'users': my_crawler.get_crawling_seed(),
+                 'db_seed': False}
+            if not next_to_crawl_list:
+                print 'No crawling seed available. Sleeping for 10 seconds ' \
+                      'and retrying...'
+                time.sleep(10)
+                continue
+            my_crawler.start_crawling(next_to_crawl_list)
 
-    def start_crawling(self, screen_name_list_and_source):
-        for user in screen_name_list_and_source['users']:
-            try:
-                if screen_name_list_and_source['db_seed']:
-                    self.db_handler.user_followed(user, 'processing')
-                self.crawl(user)
-                if screen_name_list_and_source['db_seed']:
-                    self.db_handler.user_followed(user, 'followed')
-            except KeyboardInterrupt as e:
-                print 'Something went wrong while crawling. Reverting last ' \
-                      'seed\'s been followed to not_followed\nException: {}' \
-                    .format(e)
-                with self.db_handler as db:
-                    self.db_handler.user_followed(user, 'not_followed')
 
-    def crawl(self, user):
-        print '\nCrawling user: {}\n'.format(user)
-        followers_ids = self.tw_handler.get_followers_ids(user)
-        users_from_ids = self.tw_handler.get_users_from_ids(
-            followers_ids)
-        user_objects = self.tw_handler.parse_users(users_from_ids)
-        print '\nAdding users to database (can take a while)...\n'
-        self.db_handler.add_users_to_table_users(user_objects)
+if __name__ == '__main__':
+    try:
+        Crawler().start_crawling()
+    except KeyboardInterrupt:
+        print 'Thanks for playing!'
+        sys.exit(0)
+    except Exception as e:
+        print 'Critical error. Shutting down...'
+        print '___' * 20
+        print traceback.format_exc()
+        print '___' * 20
+        sys.exit(0)

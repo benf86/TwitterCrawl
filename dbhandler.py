@@ -97,24 +97,3 @@ class DBHandler():
             user.proc_status, user.been_followed, \
             user.deep_checked = db.fetchone()
         return user
-
-    def get_next_unfollowed_user_from_db(self):
-        with DBHandler(self.config) as db:
-            query = 'SELECT id FROM {table} ' \
-                    'WHERE been_followed = \'not_followed\' ' \
-                    'AND proc_status = \'accepted\' ' \
-                    'ORDER BY followers_count DESC' \
-                .format(table=self.config['dbtable'])
-            db.execute(query)
-            user = db.fetchone()
-            if user:
-                next_to_crawl = \
-                    [self.get_user_from_db_row(user[0]).screen_name]
-                query = 'UPDATE {table} SET been_followed = \'followed\' ' \
-                        'WHERE id = {id}' \
-                    .format(table=self.config['dbtable'], id=user[0])
-                db.execute(query)
-            else:
-                next_to_crawl = []
-            return next_to_crawl
-

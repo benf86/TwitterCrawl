@@ -1,6 +1,8 @@
 import calendar
 import time
 
+from time import gmtime, strftime
+
 from TwitterAPI import TwitterAPI
 
 from twitteruser import TwitterUser
@@ -60,9 +62,16 @@ class TwitterHandler():
         return statuses
 
     def execute_api_call_and_sleep_if_limit_reached(self, request):
-        print 'Executing API request: {}'.format(request[0])
+        print '\n{} Executing API request: {}' \
+            .format(strftime("%Y-%m-%d %H:%M:%S", gmtime()), request[0])
         output_container = []
         r = self.api.request(*request)
+        if r.headers.get('x-rate-limit-remaining') and \
+                r.headers.get('x-rate-limit-limit'):
+            print '\tWe have {}/{} {} API calls left before reset.' \
+                .format(r.headers.get('x-rate-limit-remaining'),
+                        r.headers.get('x-rate-limit-limit'),
+                        request[0])
         for item in r.get_iterator():
             output_container.append(item)
         try:
@@ -71,11 +80,16 @@ class TwitterHandler():
                 limit_reset_time = r.headers.get('x-rate-limit-reset')
                 while not limit_reset_time:
                     r = self.api.request(*request)
-                    limit_reset_time = int(r.headers.get('x-rate-limit-reset'))
+                    limit_reset_time = float(
+                        r.headers.get('x-rate-limit-reset'))
                 sleep_duration_in_seconds = \
-                    limit_reset_time - calendar.timegm(time.gmtime())
-                print 'API limit resets in {} seconds' \
-                    .format(sleep_duration_in_seconds)
+                    float(limit_reset_time) - float(
+                        calendar.timegm(time.gmtime()))
+                print 'API limit resets at {}. Sleeping until then... ZzZzzz' \
+                    .format(strftime("%Y-%m-%d %H:%M:%S",
+                                     gmtime(
+                                         float(r.headers.get(
+                                             'x-rate-limit-reset')))))
                 time.sleep(sleep_duration_in_seconds)
         except KeyError as e:
             print 'KeyError exception: {}\nHeaders:\n{}'.format(e, r.headers)
