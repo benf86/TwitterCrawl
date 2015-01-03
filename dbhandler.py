@@ -1,7 +1,10 @@
 import time
+import logging
 import psycopg2
 
 from twitteruser import TwitterUser
+
+logger = logging.getLogger('logger')
 
 
 class DBHandler():
@@ -35,8 +38,8 @@ class DBHandler():
                         'WHERE EXISTS(SELECT 1 FROM {table} WHERE id=NEW.id) '
                         'DO INSTEAD NOTHING;'.format(table=table))
         except Exception as e:
-            print 'Exception in {}: {}'.format(self.__module__, e)
             self.conn.rollback()
+            raise
         return self.cur
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -60,16 +63,16 @@ class DBHandler():
 
     def update_user_status(self, user_id, new_status):
         time.sleep(0.1)
-        # print 'in dbhandler.update_user_status'
+        logger.debug('in dbhandler.update_user_status')
         with DBHandler(self.config) as db:
-            # print 'DBHandler prepared in dbhandler.update_user_status'
+            logger.debug('DBHandler prepared in dbhandler.update_user_status')
             query = 'UPDATE {table} SET proc_status = %s WHERE id = %s' \
                 .format(table=self.config['dbtable'])
-            # print 'query prepared in dbhandler.update_user_status'
+            logger.debug('query prepared in dbhandler.update_user_status')
             data = (new_status, user_id)
-            # print 'Updating user\'s DB record...'
+            logger.debug('Updating user\'s DB record...')
             db.execute(query, data)
-            # print 'User\'s DB record updated...'
+            logger.debug('User\'s DB record updated...')
 
     def accept_user(self, user_id):
         return self.update_user_status(user_id, 'accepted')

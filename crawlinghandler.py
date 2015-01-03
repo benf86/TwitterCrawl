@@ -1,3 +1,4 @@
+import sys
 import twitterhandler
 
 
@@ -44,11 +45,12 @@ class CrawlingHandler():
                 if screen_name_list_and_source['db_seed']:
                     self.db_handler.user_followed(user, 'followed')
             except KeyboardInterrupt as e:
-                print 'Something went wrong while crawling. Reverting last ' \
-                      'seed\'s been followed to not_followed\nException: {}' \
+                print 'Crawling interrupted. Reverting last seed\'s ' \
+                      'been_followed to not_followed and exiting...' \
                     .format(e)
                 with self.db_handler as db:
                     self.db_handler.user_followed(user, 'not_followed')
+                sys.exit(0)
 
     def crawl(self, user):
         print '\nCrawling user: {}\n'.format(user)

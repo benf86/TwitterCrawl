@@ -1,8 +1,11 @@
 import threading
+import logging
 
 import pika
 
 from infoprocessor import InfoProcessor
+
+logger = logging.getLogger('logger')
 
 
 class RabbitMQHandler(threading.Thread):
@@ -47,11 +50,11 @@ class RabbitMQHandler(threading.Thread):
 
         def callback(ch, method, properties, body):
             user = self.dbhandler.get_user_from_db_row(body)
-            #print '\nStarting user processing...'
+            logger.debug('Starting user processing...')
             InfoProcessor(user, self.dbhandler).run_checks()
-            #print 'Processing done, sending ACK...'
+            logger.debug('Processing done, sending ACK...')
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            #print 'ACK sent...'
+            logger.debug('ACK sent...')
 
         with rh as message_queue:
             message_queue.basic_consume(callback, rh.queue)
@@ -63,6 +66,7 @@ class RabbitMQHandler(threading.Thread):
                     'ORDER BY followers_count DESC' \
                 .format(table=self.config['dbtable'])
             db.execute(query)
+            logger.debug('\'raw\' users received from DB sorted by followers')
             i = 1
             users = db.fetchall()
             for user_id in users:
@@ -71,6 +75,10 @@ class RabbitMQHandler(threading.Thread):
                     .format(table=self.config['dbtable'],
                             id=user_id[0])
                 db.execute(query)
+                logger.debug(
+                    '\'proc_status\' set to \'enqueued\' for user {}'.format(
+                        user_id[0]))
                 self.send(str(user_id[0]))
-                print 'Sent user {}/{} to RMQ'.format(i, len(users))
+                sent_user = 'Sent user {}/{} to RMQ'.format(i, len(users))
+                logger.info(sent_user)
                 i += 1

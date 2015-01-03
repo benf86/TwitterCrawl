@@ -1,5 +1,6 @@
 import calendar
 import time
+import logging
 
 from time import gmtime, strftime
 
@@ -7,6 +8,8 @@ from TwitterAPI import TwitterAPI
 
 from twitteruser import TwitterUser
 from twitterstatus import TwitterStatus
+
+logger = logging.getLogger('logger')
 
 
 class TwitterHandler():
@@ -62,19 +65,19 @@ class TwitterHandler():
         return statuses
 
     def execute_api_call_and_sleep_if_limit_reached(self, request):
-        print '\n{} Executing API request: {}' \
-            .format(strftime("%Y-%m-%d %H:%M:%S", gmtime()), request[0])
         output_container = []
-        r = self.api.request(*request)
-        if r.headers.get('x-rate-limit-remaining') and \
-                r.headers.get('x-rate-limit-limit'):
-            print '\tWe have {}/{} {} API calls left before reset.' \
-                .format(r.headers.get('x-rate-limit-remaining'),
-                        r.headers.get('x-rate-limit-limit'),
-                        request[0])
-        for item in r.get_iterator():
-            output_container.append(item)
         try:
+            print '\n{} Executing API request: {}' \
+                .format(strftime("%Y-%m-%d %H:%M:%S", gmtime()), request[0])
+            r = self.api.request(*request)
+            if r.headers.get('x-rate-limit-remaining') and \
+                    r.headers.get('x-rate-limit-limit'):
+                print '\tWe have {}/{} {} API calls left before reset.' \
+                    .format(r.headers.get('x-rate-limit-remaining'),
+                            r.headers.get('x-rate-limit-limit'),
+                            request[0])
+            for item in r.get_iterator():
+                output_container.append(item)
             if any([r.headers.get('status') != '200 OK',
                     r.headers.get('x-rate-limit-remaining') == 0]):
                 limit_reset_time = r.headers.get('x-rate-limit-reset')
@@ -91,6 +94,10 @@ class TwitterHandler():
                                          float(r.headers.get(
                                              'x-rate-limit-reset')))))
                 time.sleep(sleep_duration_in_seconds)
-        except KeyError as e:
-            print 'KeyError exception: {}\nHeaders:\n{}'.format(e, r.headers)
+        except Exception:
+            logger.exception(
+                '\nRequest that triggered the exception:\n{}\n\nResponse '
+                'headers that triggered the exception:\n{}'.format(
+                    request, r.headers))
+            output_container = []
         return output_container

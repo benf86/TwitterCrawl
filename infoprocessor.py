@@ -1,7 +1,9 @@
 import re
+import logging
 
 import unidecode
 
+logger = logging.getLogger('logger')
 
 with open('./filters/names.csv') as names_file, \
         open('./filters/surnames.csv') as surnames_file:
@@ -48,11 +50,11 @@ class InfoProcessor():
         return False
 
     def run_checks(self):
-        #print 'Checking name: {}'.format(self.user.name)
+        logger.debug('Checking name: {}'.format(self.user.name))
         accepted = self.check_name()
-        #print 'Checking language: {}'.format(self.user.lang)
+        logger.debug('Checking language: {}'.format(self.user.lang))
         accepted = accepted or self.check_language()
-        #print 'Checking location: {}'.format(self.user.location)
+        logger.debug('Checking location: {}'.format(self.user.location))
         accepted = accepted or self.check_location()
         if accepted:
             self.accept_user()

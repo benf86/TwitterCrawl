@@ -1,11 +1,15 @@
 import time
-import traceback
 import sys
+import logging
+import logging.config
 
 import dbhandler
 import crawlinghandler
 import confighandler
 import rabbitmqhandler
+
+logging.config.fileConfig('logger.conf')
+logger = logging.getLogger('logger')
 
 
 class Crawler():
@@ -25,8 +29,8 @@ class Crawler():
             next_to_crawl_list = \
                 {'users': db_seed_user,
                  'db_seed': True} if db_seed_user else \
-                {'users': my_crawler.get_crawling_seed(),
-                 'db_seed': False}
+                    {'users': my_crawler.get_crawling_seed(),
+                     'db_seed': False}
             if not next_to_crawl_list:
                 print 'No crawling seed available. Sleeping for 10 seconds ' \
                       'and retrying...'
@@ -43,7 +47,5 @@ if __name__ == '__main__':
         sys.exit(0)
     except Exception as e:
         print 'Critical error. Shutting down...'
-        print '___' * 20
-        print traceback.format_exc()
-        print '___' * 20
+        logger.exception('\n')
         sys.exit(0)

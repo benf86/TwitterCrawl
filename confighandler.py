@@ -1,5 +1,7 @@
 import os
+import logging
 
+logger = logging.getLogger('logger')
 
 config = {}
 configFilePath = "{}/config.txt".format(
@@ -23,12 +25,13 @@ def read_config_from_disk():
             for line in my_config:
                 (key, val) = line.strip().split("=")
                 config[key] = val
-        print 'Config file successfully read! Here we go...'
+        print 'Config file successfully read!'
         return True
     except IOError as e:
         print 'Config file cannot be accessed: {}'.format(e)
+        logger.exception('\n')
     except Exception as e:
-        print 'Something went wrong... {}'.format(e)
+        logger.exception('\n')
     return False
 
 
@@ -69,7 +72,7 @@ def write_config_to_disk():
             os.path.dirname(os.path.realpath(__file__))))
         return True
     except Exception as e:
-        print e
+        logger.exception('\n')
         return False
 
 
