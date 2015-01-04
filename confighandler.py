@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 
 logger = logging.getLogger('logger')
 
@@ -38,7 +39,7 @@ def read_config_from_disk():
 def check_config_keys():
     config_fields = ['db', 'dbuser', 'dbpass', 'dbhost', 'dbport', 'dbtable',
                      'rabbithost', 'rabbitqueue', 'twapikey', 'twapisecret',
-                     'twaccess', 'twaccesssecret']
+                     'twaccess', 'twaccesssecret', 'filterdir']
 
     return sorted(config.keys()) == sorted(config_fields)
 
@@ -57,7 +58,8 @@ def generate_config():
         "twapikey": "",
         "twapisecret": "",
         "twaccess": "",
-        "twaccesssecret": ""
+        "twaccesssecret": "",
+        "filterdir": "./filters"
     }
     return config
 
@@ -70,7 +72,7 @@ def write_config_to_disk():
         print 'Please edit the config with correct values at: {}' \
             .format("{}/config.txt".format(
             os.path.dirname(os.path.realpath(__file__))))
-        return True
+        sys.exit(0)
     except Exception as e:
         logger.exception('\n')
         return False

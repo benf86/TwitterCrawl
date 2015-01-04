@@ -1,62 +1,69 @@
+import glob
 import re
 import logging
 
 import unidecode
 
+import confighandler
+
 logger = logging.getLogger('logger')
 
-with open('./filters/names.csv') as names_file, \
-        open('./filters/surnames.csv') as surnames_file:
-    names = [unidecode.unidecode(line.decode('utf-8').lower().strip()[:-1])
-             for line in names_file.readlines()] + \
-            [unidecode.unidecode(line.decode('utf-8').lower().strip()[:-1])
-             for line in surnames_file.readlines()]
 
-with open('./filters/settlements.csv') as locations_file:
-    locations = set(
-        unidecode.unidecode(line.decode('utf-8').lower().strip()[:-1])
-        for line in locations_file.readlines())
+def get_filters():
+    filter_list = \
+        glob.glob('{}/*.filter'.format(confighandler.config['filterdir']))
+    logger.info('Loading filters:\n{}'.format(filter_list))
+    return filter_list
+
+
+def get_filter_settings(filter_file):
+    with open(filter_file) as my_filter_file:
+        filter_content = my_filter_file.readlines()
+    filter_settings = filter_content[0].strip()[:-1].split(';')
+    filter_content = filter_content[1:]
+    filter_content = \
+        [clean_string(item)[:-1] for item in filter_content]
+    return filter_settings, filter_content
+
+
+def clean_string(my_string):
+    return unidecode.unidecode(my_string.decode('utf-8').lower().strip())
+
+
+def check(field, filter_content):
+    result = any(i in field for i in filter_content)
+    return result
 
 
 class InfoProcessor():
     def __init__(self, user_object, dbhandler):
+        self.config = confighandler.config
+        self.filter_dir = self.config['filterdir']
         self.db_handler = dbhandler
         self.user = user_object
-        self.names = names
-        self.locations = locations
         self.user.name = unidecode.unidecode(unicode(self.user.name, 'utf-8'))
 
-    def check_name(self):
-        split_name = self.user.name.split()
-        if len(split_name) == 2:
-            if (split_name[0] in self.names) or \
-                    (split_name[1] in self.names):
-                return True
-        elif len(split_name) == 1:
-            if split_name[0] in self.names:
-                return True
-        return False
-
-    def check_location(self):
-        split_location = re.findall(r'[\w]+', self.user.location.lower())
-        if any(i in split_location for i in
-               ['slovenia', 'slovenija', 'si', '.si']):
-            return True
-        return any(i in split_location for i in self.locations)
-
-    def check_language(self):
-        if 'sl' in self.user.lang:
-            return True
-        return False
-
     def run_checks(self):
-        logger.debug('Checking name: {}'.format(self.user.name))
-        accepted = self.check_name()
-        logger.debug('Checking language: {}'.format(self.user.lang))
-        accepted = accepted or self.check_language()
-        logger.debug('Checking location: {}'.format(self.user.location))
-        accepted = accepted or self.check_location()
-        if accepted:
+        results = None
+        for filter_file in get_filters():
+            filter_settings, filter_content = get_filter_settings(filter_file)
+            checked_field = [self.user[filter_settings[0]]]
+            if len(filter_settings) > 1:
+                checked_field = filter_settings[0]
+                for after_effect in filter_settings[1:]:
+                    if after_effect[0] == '.':
+                        checked_field = \
+                            eval('"""{}"""{}()'.format(
+                                clean_string(self.user[filter_settings[0]]),
+                                after_effect))
+                    else:
+                        checked_field = \
+                            eval('{aftereffect}("""{string}""")'
+                                 .format(aftereffect=after_effect,
+                                         string=clean_string(
+                                             self.user[filter_settings[0]])))
+            results = False or check(checked_field, filter_content)
+        if results:
             self.accept_user()
         else:
             self.reject_user()

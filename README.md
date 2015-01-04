@@ -1,10 +1,13 @@
 A Twitter crawler/scraper, which builds a Twitter user database based on certain filters
 
-For testing/use, run generatetables.py first. Upon first run of main.py, the config file will be created. Fill it with required settings and re-run main.py.
+For testing/use, run generatetables.py first. Then run worker.py or crawler.py to generate the config file. Fill it out and run both for the fun to begin.
 
-Filters are handled in/by infoprocessor.py.
+Filters are handled in/by infoprocessor.py, which automatically reads all filter files in the filter directory (default ./filters).
 
-The initial user name(s) are in the file seed.txt.
+Check the supplied filters to see the format. Generally, first row includes the name of the TwitterUser field to check against values in the rest of the file (one per line, ending with a comma), which is optionally followed by one or more functions to perform on the field value before filtering, preceded by a semicolon. Note that the format is .function for functions that don't take an argument and function (w/o the dot) for functions where the value is the argument. Parentheses are omitted in either case.
+E.g. '.lower' or 'int' for 'x.lower()' and 'int(x)' respectively.
+
+The initial user name(s) go in the file seed.txt.
 
 Dependencies:
 * sqlalchemy
