@@ -1,10 +1,11 @@
 import glob
-import re
 import logging
 
 import unidecode
 
 import confighandler
+
+import workerhud
 
 logger = logging.getLogger('logger')
 
@@ -44,34 +45,37 @@ class InfoProcessor():
         self.user.name = unidecode.unidecode(unicode(self.user.name, 'utf-8'))
 
     def run_checks(self):
-        results = None
+        results = []
         for filter_file in get_filters():
             filter_settings, filter_content = get_filter_settings(filter_file)
-            checked_field = [self.user[filter_settings[0]]]
-            if len(filter_settings) > 1:
-                checked_field = filter_settings[0]
-                for after_effect in filter_settings[1:]:
-                    if after_effect[0] == '.':
-                        checked_field = \
-                            eval('"""{}"""{}()'.format(
-                                clean_string(self.user[filter_settings[0]]),
-                                after_effect))
-                    else:
-                        checked_field = \
-                            eval('{aftereffect}("""{string}""")'
-                                 .format(aftereffect=after_effect,
-                                         string=clean_string(
-                                             self.user[filter_settings[0]])))
-            results = False or check(checked_field, filter_content)
-        if results:
+            checked_field = self.evaluate_filters(filter_settings)
+            results.append(check(checked_field, filter_content))
+        if any(results):
             self.accept_user()
         else:
             self.reject_user()
 
+    def evaluate_filters(self, filter_settings):
+        checked_field = clean_string(self.user[filter_settings[0]])
+        if len(filter_settings) > 1:
+            for after_effect in filter_settings[1:]:
+                if after_effect[0] == '.':
+                    checked_field = \
+                        eval('"""{string}"""{aftereffect}()'.format(
+                            string=checked_field.encode('string_escape'),
+                            aftereffect=after_effect))
+                else:
+                    checked_field = \
+                        eval('{aftereffect}("""{string}""")'
+                             .format(aftereffect=after_effect,
+                                     string=checked_field.encode(
+                                         'string_escape')))
+        return checked_field
+
     def accept_user(self):
-        print u'Accepted: @{}'.format(self.user.screen_name)
         self.db_handler.accept_user(self.user.id)
+        workerhud.WorkerHUD.hud(u'Accepted: @{}'.format(self.user.screen_name))
 
     def reject_user(self):
-        print u'Rejected: @{}'.format(self.user.screen_name)
         self.db_handler.reject_user(self.user.id)
+        workerhud.WorkerHUD.hud(u'Rejected: @{}'.format(self.user.screen_name))

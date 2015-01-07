@@ -1,6 +1,4 @@
 config.txt
-*.pyc
-.idea/*
 *.log
 helpers.py
 config.conf

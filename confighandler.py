@@ -28,10 +28,10 @@ def read_config_from_disk():
                 config[key] = val
         print 'Config file successfully read!'
         return True
-    except IOError as e:
+    except IOError:
         print 'Config file cannot be accessed: {}'.format(e)
         logger.exception('\n')
-    except Exception as e:
+    except Exception:
         logger.exception('\n')
     return False
 
@@ -73,7 +73,7 @@ def write_config_to_disk():
             .format("{}/config.txt".format(
             os.path.dirname(os.path.realpath(__file__))))
         sys.exit(0)
-    except Exception as e:
+    except Exception:
         logger.exception('\n')
         return False
 

@@ -3,20 +3,24 @@ import logging
 
 import pika
 
+import confighandler
+import dbhandler
+
 from infoprocessor import InfoProcessor
+from workerhud import WorkerHUD
 
 logger = logging.getLogger('logger')
 
 
 class RabbitMQHandler(threading.Thread):
-    def __init__(self, config, dbhandler):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.config = config
+        self.config = confighandler.config
         self.connection = None
         self.channel = None
         self.host = self.config['rabbithost']
         self.queue = self.config['rabbitqueue']
-        self.dbhandler = dbhandler
+        self.dbhandler = dbhandler.DBHandler()
 
     def __enter__(self):
         self.connection = pika.BlockingConnection(
@@ -34,7 +38,7 @@ class RabbitMQHandler(threading.Thread):
         self.receive()
 
     def send(self, body):
-        rh = RabbitMQHandler(self.config, self.dbhandler)
+        rh = RabbitMQHandler()
         with rh as message_queue:
             message_queue.basic_publish(exchange='',
                                         routing_key=rh.queue,
@@ -45,14 +49,16 @@ class RabbitMQHandler(threading.Thread):
                                         ))
 
     def receive(self):
-        rh = RabbitMQHandler(self.config, self.dbhandler)
-        print ' [*] Waiting for messages'
+        rh = RabbitMQHandler()
+        WorkerHUD.hud('[*] Waiting for messages')
 
         def callback(ch, method, properties, body):
-            user = self.dbhandler.get_user_from_db_row(body)
-            logger.debug('Starting user processing...')
-            InfoProcessor(user, self.dbhandler).run_checks()
-            logger.debug('Processing done, sending ACK...')
+            dbh = dbhandler.DBHandler()
+            user = dbh.get_user_from_db_row(body)
+            if user:
+                logger.debug('Starting user processing...')
+                InfoProcessor(user, self.dbhandler).run_checks()
+                logger.debug('Processing done, sending ACK...')
             ch.basic_ack(delivery_tag=method.delivery_tag)
             logger.debug('ACK sent...')
 

@@ -48,14 +48,15 @@ class TwitterUser():
     def __init__(self, user_dict={}):
         for key in user_dict:
             setattr(self, key, user_dict[key])
+        self.tweets = ''
 
     def __getitem__(self, item):
         return getattr(self, item)
 
     def __str__(self):
-        my_string = unicode('User: {user}\nusername: {screen_name}\nid: {' \
-                            'id}\nLocation: {location}\n' \
-                            'Language: {lang}\nFollowers: {followers}' \
+        my_string = unicode('User: {user}\nusername: {screen_name}\nid: {'
+                            'id}\nLocation: {location}\n'
+                            'Language: {lang}\nFollowers: {followers}'
                             .format(user=self.name,
                                     screen_name=self.screen_name,
                                     id=str(self.id),

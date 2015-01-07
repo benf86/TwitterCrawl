@@ -2,9 +2,13 @@ import sys
 import logging
 import logging.config
 
+from threading import Thread
+
 import rabbitmqhandler
 import dbhandler
 import confighandler
+
+from workerhud import WorkerHUD
 
 logging.config.fileConfig('logger.conf')
 logger = logging.getLogger('logger')
@@ -13,10 +17,13 @@ logger = logging.getLogger('logger')
 class Worker():
     def __init__(self):
         self.config = confighandler.config
-        self.dbh = dbhandler.DBHandler(self.config)
-        self.rmq = rabbitmqhandler.RabbitMQHandler(self.config, self.dbh)
+        self.dbh = dbhandler.DBHandler()
+        self.rmq = rabbitmqhandler.RabbitMQHandler()
 
     def work(self):
+        t1 = Thread(target=WorkerHUD.update_hud_data)
+        t1.setDaemon(True)
+        t1.start()
         self.rmq.receive()
 
 

@@ -20,6 +20,7 @@ class Users(Base):
     lang = Column(Text(), nullable=False)
     location = Column(Text(), nullable=True)
     name = Column(Text(), nullable=True)
+    tweets = Column(Text(), nullable=True)
     proc_status = Column(
         Enum('raw', 'enqueued', 'accepted', 'rejected', name='proc_status'))
     been_followed = Column(
