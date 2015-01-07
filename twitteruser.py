@@ -53,6 +53,9 @@ class TwitterUser():
     def __getitem__(self, item):
         return getattr(self, item)
 
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
     def __str__(self):
         my_string = unicode('User: {user}\nusername: {screen_name}\nid: {'
                             'id}\nLocation: {location}\n'

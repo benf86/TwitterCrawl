@@ -25,6 +25,7 @@ class Crawler():
         self.th = twitterhandler.TwitterHandler()
         self.rmq = rabbitmqhandler.RabbitMQHandler()
         self.ch = crawlinghandler.CrawlingHandler()
+        self.dbh.add_db_rule_ignore_duplicates()
 
     def users_to_db(self):
         CrawlerHUD.hud('User hunter thread started!')
@@ -67,7 +68,12 @@ class Crawler():
             thread.setDaemon(True)
             thread.start()
         while threads:
+            if any(thread.isAlive() == False for thread in threads):
+                print 'One of the threads has died. Please restart the ' \
+                      'program. Exiting...'
+                sys.exit(0)
             time.sleep(60)
+
 
 if __name__ == '__main__':
     try:

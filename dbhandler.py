@@ -23,6 +23,7 @@ class DBHandler():
         self.conn = None
         self.cur = None
 
+
     def __enter__(self):
         self.conn = psycopg2.connect(database=self.db,
                                      user=self.user,
@@ -30,20 +31,6 @@ class DBHandler():
                                      host=self.host,
                                      port=self.port)
         self.cur = self.conn.cursor()
-        try:
-            for table in self.tables:
-                self.cur.execute(
-                    'SELECT * FROM pg_rules '
-                    'WHERE rulename = \'on_duplicate_ignore\'')
-                if not self.cur.fetchone():
-                    self.cur.execute(
-                        'CREATE RULE "on_duplicate_ignore" AS ON INSERT TO "{'
-                        'table}" '
-                        'WHERE EXISTS(SELECT 1 FROM {table} WHERE id=NEW.id) '
-                        'DO INSTEAD NOTHING;'.format(table=table))
-        except Exception:
-            self.conn.rollback()
-            raise
         return self.cur
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -51,27 +38,56 @@ class DBHandler():
         self.cur.close()
         self.conn.close()
 
+    def add_db_rule_ignore_duplicates(self):
+        with DBHandler() as cur:
+            try:
+                for table in self.tables:
+                    cur.execute(
+                        'SELECT * FROM pg_rules '
+                        'WHERE rulename = \'on_duplicate_ignore\'')
+                    if not cur.fetchone():
+                        cur.execute(
+                            'CREATE RULE "on_duplicate_ignore" AS ON INSERT '
+                            'TO "{'
+                            'table}" '
+                            'WHERE EXISTS(SELECT 1 FROM {table} WHERE '
+                            'id=NEW.id) '
+                            'DO INSTEAD NOTHING;'.format(table=table))
+            except Exception:
+                self.conn.rollback()
+                raise
+
     def add_users_to_table_users(self, user_list):
         if user_list:
             with DBHandler() as db:
+                query = 'INSERT INTO {table} (id, screen_name, ' \
+                        'description, followers_count, friend, lang, ' \
+                        'location, name, proc_status, been_followed, ' \
+                        'deep_checked, tweets) VALUES ' \
+                    .format(table=self.config['dbtable'])
+                first_user = True
+                values = u''
                 for user in user_list:
+                    for k, v in user.__dict__.iteritems():
+                        if type(v) == unicode:
+                            v = v.encode('utf-8')
+                            user[k] = v.encode('string_escape')
+                        elif type(v) == str:
+                            user[k] = v.encode('string_escape')
                     if all([user.id, user.screen_name, user.name]):
-                        query = 'INSERT INTO {table} (id, screen_name, ' \
-                                'description, followers_count, friend, lang, ' \
-                                'location, name, proc_status, been_followed, ' \
-                                'deep_checked, tweets) ' \
-                                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, ' \
-                                '%s, ' \
-                                '%s, %s)' \
-                            .format(table=self.config['dbtable'])
-                        data = (user.id, user.screen_name, user.description,
-                                user.followers_count, user.friends_count,
-                                user.lang,
-                                user.location, user.name, 'raw',
-                                'not_followed',
-                                False,
-                                user.tweets)
-                        db.execute(query, data)
+                        if not first_user:
+                            values += ', '
+                        values += ' ({}, \'{}\', \'{}\', {}, {}, \'{}\', ' \
+                                  '\'{}\', \'{}\', \'{}\', \'{}\', {}, ' \
+                                  '\'{}\')' \
+                            .format(user.id, user.screen_name,
+                                    user.description, user.followers_count,
+                                    user.friends_count, user.lang,
+                                    user.location, user.name, 'raw',
+                                    'not_followed', False, '')
+                        first_user = False
+                values = values.replace('\\\'', '\'\'')
+                db.execute(query + values)
 
     def update_user_status(self, user_id, new_status):
         time.sleep(0.01)

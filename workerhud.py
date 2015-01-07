@@ -56,4 +56,4 @@ class WorkerHUD():
                     'SELECT COUNT(*) FROM users WHERE proc_status = '
                     '\'enqueued\'')
                 queued = db.fetchone()[0]
-            sleep(10)
+            sleep(5)
