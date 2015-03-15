@@ -1,8 +1,10 @@
-import os
-import logging
-import sys
+# -*- coding: utf-8 -*-
+"""
+This module handles all the configuration of both the spider and worker.
+"""
 
-logger = logging.getLogger('logger')
+import os
+import sys
 
 config = {}
 configFilePath = "{}/config.txt".format(
@@ -29,11 +31,7 @@ def read_config_from_disk():
         print 'Config file successfully read!'
         return True
     except IOError:
-        print 'Config file cannot be accessed: {}'.format(e)
-        logger.exception('\n')
-    except Exception:
-        logger.exception('\n')
-    return False
+        return False
 
 
 def check_config_keys():
@@ -65,17 +63,13 @@ def generate_config():
 
 
 def write_config_to_disk():
-    try:
-        with open(configFilePath, "w") as my_config:
-            for key in sorted(config):
-                my_config.write("%s=%s\n" % (key, config[key]))
-        print 'Please edit the config with correct values at: {}' \
-            .format("{}/config.txt".format(
+    with open(configFilePath, "w") as my_config:
+        for key in sorted(config):
+            my_config.write("%s=%s\n" % (key, config[key]))
+    print 'Please edit the config with correct values at: {}' \
+        .format("{}/config.txt".format(
             os.path.dirname(os.path.realpath(__file__))))
-        sys.exit(0)
-    except Exception:
-        logger.exception('\n')
-        return False
+    sys.exit(0)
 
 
 check_config_exists()

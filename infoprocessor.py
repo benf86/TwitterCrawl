@@ -1,19 +1,13 @@
 import glob
-import logging
 
 import unidecode
 
 import confighandler
 
-import workerhud
-
-logger = logging.getLogger('logger')
-
 
 def get_filters():
     filter_list = \
         glob.glob('{}/*.filter'.format(confighandler.config['filterdir']))
-    logger.info('Loading filters:\n{}'.format(filter_list))
     return filter_list
 
 
@@ -74,8 +68,6 @@ class InfoProcessor():
 
     def accept_user(self):
         self.db_handler.accept_user(self.user.id)
-        workerhud.WorkerHUD.hud(u'Accepted: @{}'.format(self.user.screen_name))
 
     def reject_user(self):
         self.db_handler.reject_user(self.user.id)
-        workerhud.WorkerHUD.hud(u'Rejected: @{}'.format(self.user.screen_name))

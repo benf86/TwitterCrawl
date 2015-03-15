@@ -2,6 +2,8 @@ from sqlalchemy import Column, BigInteger, String, Text, Enum, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 
+import dbops
+
 import confighandler
 
 
@@ -29,7 +31,32 @@ class Users(Base):
     deep_checked = Column(Boolean, nullable=False)  # were the tweets regex'd?
 
 
+def add_db_rule_ignore_duplicates(tables_list):
+    """
+    Add the PostgreSQL rule to skip duplicate entries.
+    """
+    with dbops.DBOps() as cur:
+        try:
+            for table in tables_list:
+                cur.execute(
+                    'SELECT * FROM pg_rules '
+                    'WHERE rulename = \'on_duplicate_ignore\'')
+                if not cur.fetchone():
+                    cur.execute(
+                        'CREATE RULE "on_duplicate_ignore" AS ON INSERT '
+                        'TO "{'
+                        'table}" '
+                        'WHERE EXISTS(SELECT 1 FROM {table} WHERE '
+                        'id=NEW.id) '
+                        'DO INSTEAD NOTHING;'.format(table=table))
+        except Exception:
+            cur.rollback()
+            raise
+
+
 engine = create_engine(
     'postgresql://{dbuser}:{dbpass}@{dbhost}:{dbport}/{db}'.format(**config))
 
 Base.metadata.create_all(engine)
+add_db_rule_ignore_duplicates(['users'])
+
