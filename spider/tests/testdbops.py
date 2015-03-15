@@ -193,6 +193,7 @@ class MyTestCase(unittest.TestCase):
     def test_save_users_to_db(self):
         self.dbops.save_users_to_db(self.users_objects)
 
-
+    def test_push_users_to_mq(self):
+        self.dbops.push_users_to_mq()
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,7 @@ import psycopg2
 from psycopg2.extensions import adapt
 
 import confighandler
+import rmqops
 
 
 class DBOps():
@@ -24,6 +25,7 @@ class DBOps():
         self.tables = [self.config['dbtable']]
         self.conn = None
         self.cur = None
+        self.rmq = rmqops.RMQOps()
 
     def __enter__(self):
         self.conn = psycopg2.connect(database=self.db,
@@ -98,7 +100,7 @@ class DBOps():
 
     def update_user_status(self, user_id_or_screen_name, new_status):
         """
-        Set a users status (accepted/rejected).
+        Set a user's proc_status (accepted/rejected).
 
         :param user_id_or_screen_name: string
         :param new_status: 'accepted' or 'rejected'
@@ -153,7 +155,7 @@ class DBOps():
         :return: user object or None
         """
         with self as db:
-            query = 'SELECT * FROM {table} WHERE id = {id} ' \
+            query = 'SELECT * FROM {table} WHERE id = {id} LIMIT 1 ' \
                 .format(table=self.config['dbtable'], id=user_id)
             db.execute(query)
             result = db.fetchone()
@@ -169,7 +171,7 @@ class DBOps():
 
     def add_statuses_to_user(self, user_id, tweets):
         """
-        Add tweets to a users database entry.
+        Add tweets to a user's database entry.
 
         :param user_id: string
         :param tweets: json-dumpsed tweets
@@ -181,3 +183,21 @@ class DBOps():
                         id=user_id,
                         tweets=adapt(json.dumps(tweets)))
             db.execute(query)
+
+    def push_users_to_mq(self):
+        """
+        Reconstruct JSON user object from database row and send it to RMQ.
+        """
+        with self as db:
+            query = 'SELECT * from {table} WHERE proc_status = \'raw\' ' \
+                    'ORDER BY followers_count DESC' \
+                .format(table=self.config['dbtable'])
+            db.execute(query)
+            users = db.fetchall()
+            for user in users:
+                query = 'UPDATE {table} SET proc_status = \'enqueued\' ' \
+                        'WHERE id = {id}' \
+                    .format(table=self.config['dbtable'],
+                            id=user[0])
+                db.execute(query)
+                self.rmq.send(json.dumps(user))

@@ -11,10 +11,6 @@ from TwitterAPI import TwitterAPI
 import confighandler
 
 
-
-
-
-
 # API request limiting control values - remaining requests
 api_limits = {'followers/ids': 1,
               'users/lookup': 1,
