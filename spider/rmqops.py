@@ -5,7 +5,6 @@ import threading
 import pika
 
 import confighandler
-
 from infoprocessor import InfoProcessor
 
 
@@ -34,10 +33,9 @@ class RMQOps(threading.Thread):
         self.receive()
 
     def send(self, body):
-        rh = RMQOps()
-        with rh as message_queue:
+        with self as message_queue:
             message_queue.basic_publish(exchange='',
-                                        routing_key=rh.queue,
+                                        routing_key=self.queue,
                                         body=body,
                                         properties=pika.BasicProperties(
                                             delivery_mode=2
@@ -45,14 +43,15 @@ class RMQOps(threading.Thread):
                                         ))
 
     def receive(self):
-        rh = RMQOps()
-
         def callback(ch, method, properties, body):
+            """
+            Function performed on every received message. See RMQ Docs.
+            """
             user = self.dbops.get_single_user_from_db(body)
             if user:
                 InfoProcessor(user, self.dbops).run_checks()
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-        with rh as message_queue:
-            message_queue.basic_consume(callback, rh.queue)
+        with self as message_queue:
+            message_queue.basic_consume(callback, self.queue)
             message_queue.start_consuming()
