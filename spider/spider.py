@@ -48,19 +48,28 @@ class Spider():
         for user in seed_users:
             self.dbops.accept_user(user)
 
+        next_user = None
         while True:
-            self.dbops.push_users_to_mq()
-            next_user = self.dbops.get_next_unfollowed_user_from_db()
+            print('\n\nNew turn:\n_________________________________')
+            if not next_user:
+                print('Pushing users to MQ')
+                self.dbops.push_users_to_mq()
+            print('Getting next unfollowed user from database...')
+            next_user = next_user or \
+                self.dbops.get_next_unfollowed_user_from_db()
             print('Next user: {}'.format(next_user))
             if not next_user:
-                print('No next user. Sleeping ...')
+                print('No next user. Sleeping...')
                 time.sleep(10)
                 continue
+            print('Getting followers from API')
             followers = self.apiops.get_user_followers_from_api(next_user)
-            followers = [follower.encode('utf-8') for follower in followers]
-            for followers_chunk in self.chunks(followers, 100):
-                self.dbops.save_users_to_db(
-                    self.apiops.get_user_data(csv_id_list=followers_chunk))
+            if followers:
+                followers = [follower.encode('utf-8') for follower in followers]
+                for followers_chunk in self.chunks(followers, 100):
+                    self.dbops.save_users_to_db(
+                        self.apiops.get_user_data(csv_id_list=followers_chunk))
+                next_user = None
 
     def chunks(self, l, n):
         """

@@ -51,7 +51,6 @@ class DBOps():
                 .format(table=self.config['dbtable'])
             db.execute(query)
             user = db.fetchone()
-            print('DBOps next unfollowed user: {}'.format(user))
             if user:
                 next_to_crawl = user[1]
                 query = 'UPDATE {table} SET been_followed = \'followed\' ' \

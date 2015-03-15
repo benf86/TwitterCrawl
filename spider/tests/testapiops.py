@@ -437,6 +437,9 @@ class TestApiOps(unittest.TestCase):
             self.users_objects[0][u'screen_name'])
         pprint.pprint(followers)
 
+    def test_get_statuses_from_ids(self):
+        print self.apiops.get_statuses_from_ids(['102426448'])
+
 
 if __name__ == '__main__':
     unittest.main()
