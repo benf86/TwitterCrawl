@@ -1,3 +1,5 @@
+(In the process of being rewritten in the rewrite branch)
+
 A Twitter crawler/scraper, which builds a Twitter user database based on certain filters
 
 For testing/use, run generatetables.py first. Then run worker.py or crawler.py to generate the config file. Fill it out and run both for the fun to begin.
